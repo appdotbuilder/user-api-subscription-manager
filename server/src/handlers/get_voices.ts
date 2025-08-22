@@ -1,7 +1,18 @@
+import { db } from '../db';
+import { voicesTable } from '../db/schema';
 import { type Voice } from '../schema';
 
-export async function getVoices(): Promise<Voice[]> {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is fetching all available voices from the database.
-    return [];
-}
+export const getVoices = async (): Promise<Voice[]> => {
+  try {
+    // Fetch all voices from the database, ordered by name for consistency
+    const results = await db.select()
+      .from(voicesTable)
+      .orderBy(voicesTable.name)
+      .execute();
+
+    return results;
+  } catch (error) {
+    console.error('Failed to fetch voices:', error);
+    throw error;
+  }
+};

@@ -1,15 +1,35 @@
+import { db } from '../db';
+import { usersTable, subscriptionPlansTable } from '../db/schema';
 import { type CreateUserInput, type User } from '../schema';
+import { eq } from 'drizzle-orm';
 
-export async function createUser(input: CreateUserInput): Promise<User> {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is creating a new user and persisting it in the database.
-    // Should validate that email is unique and subscription_plan_id exists if provided.
-    return Promise.resolve({
-        id: 1, // Placeholder ID
+export const createUser = async (input: CreateUserInput): Promise<User> => {
+  try {
+    // If subscription_plan_id is provided, validate it exists
+    if (input.subscription_plan_id !== null && input.subscription_plan_id !== undefined) {
+      const existingPlan = await db.select()
+        .from(subscriptionPlansTable)
+        .where(eq(subscriptionPlansTable.id, input.subscription_plan_id))
+        .execute();
+      
+      if (existingPlan.length === 0) {
+        throw new Error(`Subscription plan with id ${input.subscription_plan_id} does not exist`);
+      }
+    }
+
+    // Insert user record
+    const result = await db.insert(usersTable)
+      .values({
         email: input.email,
         name: input.name,
-        subscription_plan_id: input.subscription_plan_id,
-        created_at: new Date(),
-        updated_at: new Date()
-    } as User);
-}
+        subscription_plan_id: input.subscription_plan_id
+      })
+      .returning()
+      .execute();
+
+    return result[0];
+  } catch (error) {
+    console.error('User creation failed:', error);
+    throw error;
+  }
+};

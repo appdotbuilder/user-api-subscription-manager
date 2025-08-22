@@ -1,15 +1,39 @@
+import { db } from '../db';
+import { callSessionsTable } from '../db/schema';
 import { type EndCallSessionInput, type CallSession } from '../schema';
+import { eq } from 'drizzle-orm';
 
-export async function endCallSession(input: EndCallSessionInput): Promise<CallSession> {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is ending an active call session by setting the end_time.
-    // Should validate that call session exists and is not already ended.
-    return Promise.resolve({
-        id: input.id,
-        twilio_call_id: 'placeholder_call_id',
-        user_id: 1, // Placeholder user ID
-        start_time: new Date(),
-        end_time: input.end_time,
-        created_at: new Date()
-    } as CallSession);
-}
+export const endCallSession = async (input: EndCallSessionInput): Promise<CallSession> => {
+  try {
+    // First, verify the call session exists and is not already ended
+    const existingSessions = await db.select()
+      .from(callSessionsTable)
+      .where(eq(callSessionsTable.id, input.id))
+      .execute();
+
+    if (existingSessions.length === 0) {
+      throw new Error(`Call session with id ${input.id} not found`);
+    }
+
+    const existingSession = existingSessions[0];
+    
+    // Check if the session is already ended
+    if (existingSession.end_time !== null) {
+      throw new Error(`Call session with id ${input.id} is already ended`);
+    }
+
+    // Update the call session with the end time
+    const result = await db.update(callSessionsTable)
+      .set({
+        end_time: input.end_time
+      })
+      .where(eq(callSessionsTable.id, input.id))
+      .returning()
+      .execute();
+
+    return result[0];
+  } catch (error) {
+    console.error('End call session failed:', error);
+    throw error;
+  }
+};
